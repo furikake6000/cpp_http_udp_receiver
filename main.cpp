@@ -36,7 +36,7 @@ int main(int argc, char *argv[]){
 
   if (bind(s, (struct sockaddr *)&myskt, sizeof(myskt)) < 0) {
     perror("bind");
-    cout << "Note: You may have to give me permission, because this app uses PORT 80(http)." << endl;
+    cerr << "Note: You may have to give me permission, because this app uses PORT 80(http)." << endl;
     exit(1);
   }
 
@@ -55,6 +55,13 @@ int main(int argc, char *argv[]){
     to_string(responsehtml.size()) +
     "\r\nContent-Type: text/html\r\n\r\n" +
     responsehtml + "\r\n";
+  //Json読み取り不可メッセージ
+  string errresponsehtml = "<html><title>httpudp responder</title>Your signal denied...</html>";
+  string errresponse =
+    "HTTP/1.0 400 Bad Request\r\nContent-Length: " +
+    to_string(errresponsehtml.size()) +
+    "\r\nContent-Type: text/html\r\n\r\n" +
+    errresponsehtml + "\r\n";
 
   while(1){
     struct sockaddr_in client; //Client sockaddr
@@ -66,9 +73,14 @@ int main(int argc, char *argv[]){
     memset(clbuf, 0, sizeof(clbuf));
     recv(s_client, clbuf, sizeof(clbuf), 0);
     //auto data = json::parse(clbuf);
-
-    send(s_client, response.c_str(), (int)response.size(), 0);
-
+    try {
+      auto data = json::parse(clbuf);
+      send(s_client, response.c_str(), (int)response.size(), 0);
+    } catch(std::exception& e) {
+      cerr << "Json parsing error." << std::endl;
+      send(s_client, errresponse.c_str(), (int)errresponse.size(), 0);
+    }
+    
     close(s_client);
   }
 
