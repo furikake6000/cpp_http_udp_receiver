@@ -91,6 +91,8 @@ int main(int argc, char *argv[]){
       send(s_client, errresponse.c_str(), (int)errresponse.size(), 0);
     }
 
+    // Write Json recognizer here!!!
+
     // セッション終了
     close(s_client);
   }
