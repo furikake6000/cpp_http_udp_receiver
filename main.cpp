@@ -9,6 +9,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <algorithm>
 
 #include "3rd_party/json.hpp"
 
@@ -16,6 +17,9 @@ using namespace std;
 using json = nlohmann::json;
 
 #define HTTP_PORT 80
+
+// POSTメッセージからcontentの内容を取り出す
+string get_http_content(string buf);
 
 int main(int argc, char *argv[]){
   int s; //Socket
@@ -55,34 +59,48 @@ int main(int argc, char *argv[]){
     to_string(responsehtml.size()) +
     "\r\nContent-Type: text/html\r\n\r\n" +
     responsehtml + "\r\n";
-  //Json読み取り不可メッセージ
-  string errresponsehtml = "<html><title>httpudp responder</title>Your signal denied...</html>";
+  //Json読み取り不可メッセージ作成
+  string errresponsehtml = "<html><title>httpudp responder</title>Your signal denied.<br/>Be sure your Json post is correct.</html>";
   string errresponse =
     "HTTP/1.0 400 Bad Request\r\nContent-Length: " +
     to_string(errresponsehtml.size()) +
     "\r\nContent-Type: text/html\r\n\r\n" +
     errresponsehtml + "\r\n";
 
+  // 接続開始
+
   while(1){
+    // 1セッション開始
     struct sockaddr_in client; //Client sockaddr
     unsigned int len = sizeof(client);
     char clbuf[1024];
 
+    // 接続待機
     int s_client = accept(s, (struct sockaddr *)&client, &len);
 
+    // データ受信
     memset(clbuf, 0, sizeof(clbuf));
     recv(s_client, clbuf, sizeof(clbuf), 0);
-    //auto data = json::parse(clbuf);
     try {
-      auto data = json::parse(clbuf);
+      // Content取り出しjson解析
+      auto data = json::parse(get_http_content(clbuf).c_str());
       send(s_client, response.c_str(), (int)response.size(), 0);
     } catch(std::exception& e) {
+      // json解析できなかったら 400 Bad Request を返す
       cerr << "Json parsing error." << std::endl;
       send(s_client, errresponse.c_str(), (int)errresponse.size(), 0);
     }
-    
+
+    // セッション終了
     close(s_client);
   }
 
   close(s);
+}
+
+string get_http_content(string buf){
+  // \R\N改行コード2回がcontent開始の合図
+  string endsignal = "\r\n\r\n";
+  auto r = std::search(buf.begin(), buf.end(), endsignal.begin(), endsignal.end());
+  return string(r + endsignal.size(), buf.end());
 }
