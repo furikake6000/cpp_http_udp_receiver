@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <sys/wait.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,9 +8,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <dirent.h>
 
 #define HTTP_PORT 80
 
@@ -45,17 +41,16 @@ int main(int argc, char *argv[]){
   }
 
   //Ready to receiving
-  printf("myFTP server standby...\n");
+  printf("HTTP->UDP receiver started...\n");
 
   // 応答用HTTPメッセージ作成
   memset(buf, 0, sizeof(buf));
-  sprintf(buf, 
+  sprintf(buf,
    "HTTP/1.0 200 OK\r\n"
-   "Content-Length: 20\r\n"
+   "Content-Length: 200\r\n"
    "Content-Type: text/html\r\n"
    "\r\n"
-   "HELLO\r\n");
-  char returnsig[] = "HTTP/1.0 200 OK\r\nContent-Length: 20\r\nContent-Type: text/html\r\n\r\nHELLO\r\n";
+   "<html><title>httpudp responder</title>Your signal accepted!</html>\r\n");
 
   while(1){
     struct sockaddr_in client; //Client sockaddr
@@ -68,7 +63,7 @@ int main(int argc, char *argv[]){
     recv(s_client, clbuf, sizeof(clbuf), 0);
     printf("%s", clbuf);
 
-    send(s_client, returnsig, (int)strlen(returnsig), 0);
+    send(s_client, buf, (int)strlen(buf), 0);
 
     close(s_client);
   }
