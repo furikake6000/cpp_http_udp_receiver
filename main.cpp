@@ -1,7 +1,8 @@
-#include <stdio.h>
+#include <iostream>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 #include <stdint.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -9,13 +10,16 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
+#include "3rd_party/json.hpp"
+
+using namespace std;
+using json = nlohmann::json;
+
 #define HTTP_PORT 80
 
 int main(int argc, char *argv[]){
   int s; //Socket
   struct sockaddr_in myskt; //My sockaddr
-
-  char buf[1024];
 
   if((s = socket(PF_INET, SOCK_STREAM, 0)) < 0){
     perror("socket");
@@ -32,6 +36,7 @@ int main(int argc, char *argv[]){
 
   if (bind(s, (struct sockaddr *)&myskt, sizeof(myskt)) < 0) {
     perror("bind");
+    cout << "Note: You may have to give me permission, because this app uses PORT 80(http)." << endl;
     exit(1);
   }
 
@@ -41,16 +46,15 @@ int main(int argc, char *argv[]){
   }
 
   //Ready to receiving
-  printf("HTTP->UDP receiver started...\n");
+  cout << "HTTP->UDP receiver started..." << endl;
 
   // 応答用HTTPメッセージ作成
-  memset(buf, 0, sizeof(buf));
-  sprintf(buf,
-   "HTTP/1.0 200 OK\r\n"
-   "Content-Length: 200\r\n"
-   "Content-Type: text/html\r\n"
-   "\r\n"
-   "<html><title>httpudp responder</title>Your signal accepted!</html>\r\n");
+  string responsehtml = "<html><title>httpudp responder</title>Your signal accepted!</html>";
+  string response =
+    "HTTP/1.0 200 OK\r\nContent-Length: " +
+    to_string(responsehtml.size()) +
+    "\r\nContent-Type: text/html\r\n\r\n" +
+    responsehtml + "\r\n";
 
   while(1){
     struct sockaddr_in client; //Client sockaddr
@@ -61,9 +65,9 @@ int main(int argc, char *argv[]){
 
     memset(clbuf, 0, sizeof(clbuf));
     recv(s_client, clbuf, sizeof(clbuf), 0);
-    printf("%s", clbuf);
+    //auto data = json::parse(clbuf);
 
-    send(s_client, buf, (int)strlen(buf), 0);
+    send(s_client, response.c_str(), (int)response.size(), 0);
 
     close(s_client);
   }
